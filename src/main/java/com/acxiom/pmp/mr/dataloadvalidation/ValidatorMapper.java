@@ -58,7 +58,8 @@ public class ValidatorMapper extends Mapper<LongWritable, Text, Text, Text > imp
 			}
 			if(inputFilePath.contains(sourceDataLocation)){
 				String[] nameHolder = inputFileName.split(UNDERSCORE);
-				tableName = nameHolder[0];
+				String[] tableNameHolder = inputFileName.split(TABLE_NAME_SPLITTER_FROM_FNAME);
+				tableName = tableNameHolder[0];
 				int index = nameHolder.length-1;
 				lstName = nameHolder[index];
 				//lastName:20160531.tsv

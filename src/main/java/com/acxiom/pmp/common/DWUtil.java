@@ -21,6 +21,7 @@ import java.util.Properties;
 
 import org.apache.commons.configuration.ConfigurationException;
 import org.apache.commons.configuration.PropertiesConfiguration;
+import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileStatus;
@@ -51,7 +52,8 @@ public class DWUtil implements DWConfigConstants {
 		StringBuilder requiredFolderList = new StringBuilder();
 		StringBuilder requiredFileList = new StringBuilder();
 		sourceTableinputPath = sourceTableinputPath + "Data" + FSEP  ;
-
+		//tempdelete:
+		String dateFolder;
 		switch (comparisionLevel){
 		case "FULL":	
 			try {
@@ -64,14 +66,16 @@ public class DWUtil implements DWConfigConstants {
 					}
 
 					try {
-						String dateFolder = status.getPath().getName();
-						int currentDate = Integer.parseInt(dateFolder);
-						if(currentDate >= Integer.parseInt(startDate) && currentDate <= Integer.parseInt(endDate)){
-							requiredFolderList.append(status.getPath().toString() +  FSEP +targetTable+ COMMA);
+						dateFolder = status.getPath().getName();
+						if(StringUtils.isNumeric(dateFolder)){
+							int currentDate = Integer.parseInt(dateFolder);
+							if(currentDate >= Integer.parseInt(startDate) && currentDate <= Integer.parseInt(endDate)){
+								requiredFolderList.append(status.getPath().toString() +  FSEP +targetTable+ COMMA);
+							}
 						}
 					} catch (Exception e) {
-						e.printStackTrace();
-						throw new DWException("Error occured while ", e);
+						//e.printStackTrace();
+						throw new DWException("Error occured while " + sourceTableinputPath , e);
 					}
 				}
 				if(requiredFolderList.length()>0){
@@ -79,7 +83,7 @@ public class DWUtil implements DWConfigConstants {
 				}
 
 			} catch (Exception e) {
-				throw new DWException("Error occured while getting required source table list", e);
+				throw new DWException("Error occured while getting required source table list" + sourceTableinputPath, e);
 			}
 			return requiredFolderList.toString();
 		default:
@@ -91,7 +95,7 @@ public class DWUtil implements DWConfigConstants {
 					if(!status.isDir()){
 						continue ;
 					}
-					String dateFolder = status.getPath().getName();
+					dateFolder = status.getPath().getName();
 					int currentDate = Integer.parseInt(dateFolder);
 					if(currentDate >= Integer.parseInt(startDate) && currentDate <= Integer.parseInt(endDate)){
 						//requiredFolderList.append(status.getPath().toString() +  FSEP +targetTable+ COMMA);
@@ -101,7 +105,7 @@ public class DWUtil implements DWConfigConstants {
 								continue ;
 							}
 							String inputPathFileName = status.getPath().getName();
-							String[] fileSplitHoder = inputPathFileName.split(UNDERSCORE);
+							String[] fileSplitHoder = inputPathFileName.split(TABLE_NAME_SPLITTER_FROM_FNAME);
 							String tablename = fileSplitHoder[0];
 							if(sourceTableList.contains(tablename)){
 								requiredFileList.append(dataFile.getPath().toString() + COMMA);
@@ -193,11 +197,11 @@ public class DWUtil implements DWConfigConstants {
 					String headerFilePath = dataFilePath.replace("/Data/", "/Header/");
 					//log.info("FileName : " + fileName);
 					String fileName = status.getPath().getName(); // $(B1)_1TIME_HEADER_YYYYMMDD.tsv
-					
+
 					headerFilePath = headerFilePath.replace("_DATA_", "_HEADER_");
-                  
+
 					//$(Prefix)_1TIME_HEADER_YYYYMMDD.tsv
-					String[] fileNameSplit = fileName.split("_");
+					String[] fileNameSplit = fileName.split(TABLE_NAME_SPLITTER_FROM_FNAME);
 					String sValue= dateValue + COLON + headerFilePath;
 					String tableName = fileNameSplit[0];
 					// first get the property to see if one exists on this key; if yes, then update it; else create new property
@@ -208,7 +212,7 @@ public class DWUtil implements DWConfigConstants {
 					} else {
 						// update
 						scHeaderconfig.setProperty(tableName, val+COMMA+sValue);
-						
+
 					}
 				}
 			}
@@ -220,7 +224,7 @@ public class DWUtil implements DWConfigConstants {
 		return scHeaderconfig;
 	}
 
-	
+
 	// Output: 
 	// delimiters are 
 	// LSEP for lines
@@ -237,15 +241,15 @@ public class DWUtil implements DWConfigConstants {
 		for(Entry<Object, Object> entry: scHeaderconfig.entrySet()) {
 			String tableName = (String) entry.getKey();
 			String csTableDateHeaders = (String) entry.getValue();
-			
+
 			String[] tableDateHeaders = csTableDateHeaders.split(COMMA);
-			
+
 			StringBuilder dateHeadersStr = new StringBuilder();
 			for(String dateHeader: tableDateHeaders) {
 				String[] dateHeaderArr = dateHeader.split(COLON);
 				String date = dateHeaderArr[0];
 				String headerFile = dateHeaderArr[1];
-				
+
 				// read the file
 				String tsHeaderContent = "";
 				System.out.println("Source HeaderFilePath" + headerFile + LSEP);
@@ -274,7 +278,7 @@ public class DWUtil implements DWConfigConstants {
 		return result.toString();
 	}
 
-	
+
 	public static String getFullSrcTablesList(Properties scHeaderconfig){
 		StringBuilder result = new StringBuilder();
 		for(Entry<Object, Object> entry: scHeaderconfig.entrySet()) {
@@ -287,7 +291,7 @@ public class DWUtil implements DWConfigConstants {
 		}
 		return result.toString();
 	}
-	
+
 	// Input: 
 	// delimiters are 
 	// LSEP for lines
@@ -299,7 +303,7 @@ public class DWUtil implements DWConfigConstants {
 
 	public static Map<String, Map<String, String>> getHeadersAsMap(String headersStr) {
 
-		
+
 		Map<String, Map<String, String>> secondMap = new HashMap<String, Map<String, String>>();
 		//Map<String, Map<String, Map<String, String>>> firstMap = new HashMap<String, Map<String, Map<String, String>>>();
 
@@ -339,7 +343,7 @@ public class DWUtil implements DWConfigConstants {
 
 		//targetBAUDWLocation = targetBAUDWLocation +FSEP +  "Header" + FSEP+ targetHiveTableName + FSEP ;	
 		//VenkatData Testing
-		targetBAUDWLocation = "/mapr/thor/amexprod/STAGING/tempdelete/targetHiveDir/Header/PBL/" ;
+		targetBAUDWLocation = "/mapr/thor/amexprod/STAGING/tempdelete/targetHiveDir/Header/BIN/" ;
 		Path headerFileLocation = null;
 		String tsHeaderContent = "";
 		try {
@@ -350,7 +354,7 @@ public class DWUtil implements DWConfigConstants {
 				if(status.isDir()){
 					continue ;
 				}
-				
+
 				headerFileLocation = status.getPath();
 			}
 			FSDataInputStream is = fs.open(headerFileLocation);

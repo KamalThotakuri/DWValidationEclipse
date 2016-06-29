@@ -16,6 +16,7 @@ public interface DWConfigConstants {
 	String DWVALIDATION_SOURCE_HEADERS = "dwvalidation.headers";
 	String DWVALIDATION_ROW_KEY="dwvalidation.row.key";
 	// Utility Constants 
+	String TABLE_NAME_SPLITTER_FROM_FNAME="_1TIME_";
 	String COMMA = ",";
 	String FSEP = File.separator;
 	String LSEP = System.getProperty("line.separator");
@@ -33,5 +34,8 @@ public interface DWConfigConstants {
 	String COMPARISION_TYPE="FULL";
 	String OPBRACKET = "[";
 	String CLBRACKET = "]";
+	String DIFFERED_COLS="differed_cols";
+	String EXISTS_ONLY_IN_SOURCE_COLS="exists_only_in_source_cols";
+	String EXISTS_ONLY_IN_TARGET_COLS="exists_only_in_target_cols";
 
 }

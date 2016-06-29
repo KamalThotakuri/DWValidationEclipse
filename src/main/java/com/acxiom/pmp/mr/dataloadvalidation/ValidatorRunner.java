@@ -12,6 +12,7 @@ import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.input.TextInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
+import org.apache.hadoop.mapreduce.lib.output.LazyOutputFormat;
 import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
 import org.apache.hadoop.util.Tool;
 import org.apache.hadoop.util.ToolRunner;
@@ -35,11 +36,11 @@ public class ValidatorRunner extends Configured implements Tool,DWConfigConstant
 				prop.getProperty(DWVALIDATION_TARGET_HIVE_TABLE_TOCOMPARE),
 				prop.getProperty(DWVALIDATION_SOURCE_TABLES_DATA_LOCATON));
 
-		System.out.println(sourceInputDataSet);
-		//String dwTableInputDataSet = prop.getProperty(DWVALIDATION_TARGET_DW_TABLE_DATA_LOCATON) + FSEP + "Data" + FSEP +
-		prop.getProperty(DWVALIDATION_TARGET_HIVE_TABLE_TOCOMPARE);
+		System.out.println("Staring Point InputData :" +sourceInputDataSet);
+		/*String dwTableInputDataSet = prop.getProperty(DWVALIDATION_TARGET_DW_TABLE_DATA_LOCATON) + FSEP + "Data" + FSEP +
+		prop.getProperty(DWVALIDATION_TARGET_HIVE_TABLE_TOCOMPARE);*/
 		//For Venkat Data
-		String dwTableInputDataSet = "/mapr/thor/amexprod/STAGING/1dataload/1TIME/Data/20160617/PBL/joinFiles/";
+		String dwTableInputDataSet =  prop.getProperty(DWVALIDATION_TARGET_DW_TABLE_DATA_LOCATON);
 		Configuration conf= new Configuration();
 		conf.set("mapred.reduce.tasks", "7");
 		conf.set(DWVALIDATION_TARGET_HIVE_TABLE_TOCOMPARE, prop.getProperty(DWConfigConstants.DWVALIDATION_TARGET_HIVE_TABLE_TOCOMPARE));
@@ -58,6 +59,9 @@ public class ValidatorRunner extends Configured implements Tool,DWConfigConstant
 			conf.set(DWVALIDATION_SOURCE_TABLES_REQUIRED_TOCOMPARE, prop.getProperty(DWConfigConstants.DWVALIDATION_SOURCE_TABLES_REQUIRED_TOCOMPARE));
 		}
 		conf.set(DWVALIDATION_ROW_KEY,prop.getProperty(DWVALIDATION_ROW_KEY));
+		String outPath = prop.getProperty(DWVALIDATION_RESULT_LOCATION ) + prop.getProperty(DWConfigConstants.DWVALIDATION_TARGET_HIVE_TABLE_TOCOMPARE) + FSEP + 
+				prop.getProperty(DWVALIDATION_START_DATAE) + UNDERSCORE + prop.getProperty(DWVALIDATION_END_DATAE);
+		conf.set(DWVALIDATION_RESULT_LOCATION, outPath);
 		conf.set("mapreduce.job.reduces", "7");
 		Map<String, Map<String, String>> map1 = DWUtil.getHeadersAsMap(headerFilesStr);
 		for(Map.Entry<String, Map<String, String>> elements:map1.entrySet() ){
@@ -78,6 +82,7 @@ public class ValidatorRunner extends Configured implements Tool,DWConfigConstant
 		job.setMapOutputValueClass(Text.class);			
 		job.setOutputKeyClass(Text.class);	
 		job.setOutputValueClass(NullWritable.class);
+		LazyOutputFormat.setOutputFormatClass(job, TextOutputFormat.class);
 		//job.setNumReduceTasks(0);
 		// inputs
 		job.setInputFormatClass(TextInputFormat.class);
@@ -87,7 +92,7 @@ public class ValidatorRunner extends Configured implements Tool,DWConfigConstant
 		FileInputFormat.setInputPaths(job, inputDataSet);
 
 		// output
-		job.setOutputFormatClass(TextOutputFormat.class);
+		//job.setOutputFormatClass(TextOutputFormat.class);
 		Path outputPath = new Path(prop.getProperty(DWVALIDATION_RESULT_LOCATION));
 		/*String outPath = prop.getProperty(DWVALIDATION_RESULT_LOCATION ) + prop.getProperty(DWConfigConstants.DWVALIDATION_TARGET_HIVE_TABLE_TOCOMPARE) + FSEP + 
 				prop.getProperty(DWVALIDATION_START_DATAE) + UNDERSCORE +
