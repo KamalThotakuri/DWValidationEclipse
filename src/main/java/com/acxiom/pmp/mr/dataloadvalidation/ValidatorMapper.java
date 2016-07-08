@@ -13,6 +13,7 @@ import org.apache.hadoop.mapreduce.lib.input.FileSplit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.acxiom.pmp.common.DWException;
 import com.acxiom.pmp.common.DWUtil;
 import com.acxiom.pmp.constants.DWConfigConstants;
 //Comment added 
@@ -28,7 +29,9 @@ public class ValidatorMapper extends Mapper<LongWritable, Text, Text, Text > imp
 	private String srcRequiredTable;
 	private String rowKeyCols;
 	private Map<String, Map<String, String>> map = new HashMap<String, Map<String, String>>();
+	private Map<String, Map<String, String>> dateColIndxMap = new HashMap<String, Map<String, String>>();
 	private ArrayList<Integer> compositeKeyIndex = new ArrayList<Integer>();
+	private String dateColIndxs;
 	//Has to remove the below variables and make them local
 	private String inputFilePath;
 	private String inputFileName;
@@ -46,12 +49,8 @@ public class ValidatorMapper extends Mapper<LongWritable, Text, Text, Text > imp
 			targetHiveTable = conf.get(DWVALIDATION_TARGET_HIVE_TABLE_TOCOMPARE);
 			srcRequiredTable = conf.get(DWVALIDATION_SOURCE_TABLES_REQUIRED_TOCOMPARE);
 			String headerFiles = conf.get(DWVALIDATION_SOURCE_HEADERS);
+			dateColIndxs = conf.get(DATE_COL_INDEXS);
 			map = DWUtil.getHeadersAsMap(headerFiles);
-			//$(Prefix)_1TIME_DATA_YYYYMMDD.tsv
-			//SBKTO::
-			//InputFile Path:maprfs:///mapr/thor/amexprod/STAGING/tempdelete/srcTableDir/Data/20160531/BIN/SBKTO_1TIME_DATA_20160531.tsv 
-			//InputFileName:SBKTO_1TIME_DATA_20160531.tsv 
-			//sourceDataLocation:/mapr/thor/amexprod/STAGING/tempdelete/srcTableDir/::
 			rowKeyCols = conf.get(DWVALIDATION_ROW_KEY);
 			if(rowKeyCols.split(COMMA).length >1){
 				isCompositeKey=true;
@@ -85,7 +84,7 @@ public class ValidatorMapper extends Mapper<LongWritable, Text, Text, Text > imp
 							for(int i = 0; i < cols.length; i++) {
 								if(cols[i].equals(kcol)){
 									compositeKeyIndex.add(i);
-									break innerloop;
+									//break innerloop;
 								}
 							}
 					}
@@ -93,7 +92,6 @@ public class ValidatorMapper extends Mapper<LongWritable, Text, Text, Text > imp
 			}else{
 				tableName = targetHiveTable;
 			}
-
 		} catch (Exception e1) {
 			e1.printStackTrace();
 		}  
@@ -118,32 +116,40 @@ public class ValidatorMapper extends Mapper<LongWritable, Text, Text, Text > imp
 	}
 
 	private DataRecord handlePrimarKey(Text value) {
+		try{
+			String[] columns = value.toString().split(TAB,-2);
+			if(tableName.equals(targetHiveTable) ){
+				String[] indx = dateColIndxs.split(COMMA);
+				for(String in:indx){
+					int dtindx = Integer.parseInt(in);
+					String temp = columns[dtindx];
+					columns[dtindx] = temp.replace(HYPHEN, "");
+				}
+			}
+			
+			String primaryKey = columns[primaryKeyIndex];         
+			StringBuilder result = new StringBuilder();
+			for(int colIdx=0; colIdx<columns.length; colIdx++) {
+				result.append(columns[colIdx].trim()+TAB);
+			}
+			if(result.length() > 0) {
+				result.setLength(result.length()-1);
+			}
+			return new DataRecord(primaryKey, result.toString());
 
-		String[] columns = value.toString().split(TAB,-2);
-		String primaryKey = columns[primaryKeyIndex];
-
-		StringBuilder result = new StringBuilder();
-		for(int colIdx=0; colIdx<columns.length; colIdx++) {
-
-			/*if(colIdx == primaryKeyIndex) {
-				continue;
-			}*/
-			result.append(columns[colIdx].trim()+TAB);
+		}catch(Exception e){
+			throw new DWException("From catch:", e);
 		}
-		if(result.length() > 0) {
-			result.setLength(result.length()-1);
-		}
-		return new DataRecord(primaryKey, result.toString());
-		//return new DataRecord(primaryKey, value.toString());
-
 	}
 
 	@Override
 	public void map(LongWritable key, Text value, Context context) throws IOException, InterruptedException{
 		//TempDelete
 		String[] columnValues = value.toString().split(TAB,-2);
-
+		
+	try{	
 		DataRecord record = null;
+				
 		if(isCompositeKey) {
 			record = handleCompositeKey(value);
 		} else {
@@ -169,20 +175,26 @@ public class ValidatorMapper extends Mapper<LongWritable, Text, Text, Text > imp
 		sb.append(COLON);
 		//sb.append(value.toString());
 		sb.append(record.getRecord());
-
-		// bin is 1st column
 		keyOut.set(record.getRowKey());
 		valueOut.set(sb.toString());
-		log.info("Primary Key:" + record.getRowKey());
-		System.out.println("Primary Key:" + record.getRowKey());
 		context.write(keyOut, valueOut);
-
-
+	 }catch(Exception e){
+		 throw new DWException("coldIndex from map:");
+	 }
+	
 	}
-
 	private DataRecord handleCompositeKey(Text value) {
 		StringBuilder combiner = new StringBuilder();
 		String[] columns = value.toString().split(TAB,-2);
+
+		if(tableName.equals(targetHiveTable) ){
+			String[] indx = dateColIndxs.split(COMMA);
+			for(String in:indx){
+				int dtindx = Integer.parseInt(in);
+				String temp = columns[dtindx];
+				columns[dtindx] = temp.replace(HYPHEN, "");
+			}
+		}
 		for(Integer index:compositeKeyIndex){
 			String cloName = columns[index];
 			combiner.append(cloName);
@@ -206,4 +218,5 @@ public class ValidatorMapper extends Mapper<LongWritable, Text, Text, Text > imp
 		}*/
 		return new DataRecord(rowKey, result.toString());
 	}
+
 }

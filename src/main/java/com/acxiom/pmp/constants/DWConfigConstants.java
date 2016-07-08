@@ -15,7 +15,10 @@ public interface DWConfigConstants {
 	String DWVALIDATION_TARGET_HEADER="dwvalidation.target.header";
 	String DWVALIDATION_SOURCE_HEADERS = "dwvalidation.headers";
 	String DWVALIDATION_ROW_KEY="dwvalidation.row.key";
+	String DWVALIDATION_COL_SAMPLING_COUNT="dwvalidation.col.sampling.cout";
+	String DWVALIDATION_SOURCE__EXCLUDED_TABLES="dwvalidation.source.excluded.tables";
 	// Utility Constants 
+	String DATE_COL_INDEXS="0";
 	String TABLE_NAME_SPLITTER_FROM_FNAME="_1TIME_";
 	String COMMA = ",";
 	String FSEP = File.separator;
@@ -31,11 +34,15 @@ public interface DWConfigConstants {
 	String FCLBRACKET = "}";
 	String PIPE = "|";
 	String ADDITIONAL_NEWLINE= ",newline";
-	String COMPARISION_TYPE="FULL";
+	String COMPRESSION_FULL="FULL";
 	String OPBRACKET = "[";
 	String CLBRACKET = "]";
 	String DIFFERED_COLS="differed_cols";
 	String EXISTS_ONLY_IN_SOURCE_COLS="exists_only_in_source_cols";
 	String EXISTS_ONLY_IN_TARGET_COLS="exists_only_in_target_cols";
+	String NOT_UPDATED_TO_NULL="not_updated_to_null";
+	String SAMPLING_FOLDER_NAME= "LIMITBY";
+	String DATE_COL_REFERENCE= "_dt";
+	String HYPHEN="-";
 
 }

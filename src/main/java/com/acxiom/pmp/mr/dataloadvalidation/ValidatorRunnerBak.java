@@ -33,7 +33,8 @@ public class ValidatorRunnerBak extends Configured implements Tool,DWConfigConst
 				prop.getProperty(DWVALIDATION_COMPRESSION_LEVEL),
 				prop.getProperty(DWVALIDATION_SOURCE_TABLES_REQUIRED_TOCOMPARE),
 				prop.getProperty(DWVALIDATION_TARGET_HIVE_TABLE_TOCOMPARE),
-				prop.getProperty(DWVALIDATION_SOURCE_TABLES_DATA_LOCATON));
+				prop.getProperty(DWVALIDATION_SOURCE_TABLES_DATA_LOCATON),
+				prop.getProperty(DWVALIDATION_SOURCE__EXCLUDED_TABLES));
 
 		String dwTableInputDataSet = prop.getProperty(DWVALIDATION_TARGET_DW_TABLE_DATA_LOCATON) + FSEP + "Data" + FSEP +
 				prop.getProperty(DWVALIDATION_TARGET_HIVE_TABLE_TOCOMPARE);
@@ -54,7 +55,7 @@ public class ValidatorRunnerBak extends Configured implements Tool,DWConfigConst
 		String csTargetHeader = DWUtil.getTargetHeaderColumns(prop.getProperty(DWVALIDATION_TARGET_DW_TABLE_DATA_LOCATON) ,prop.getProperty(DWVALIDATION_TARGET_HIVE_TABLE_TOCOMPARE));
 		System.out.println("target Header Cols: " + csTargetHeader);
 		conf.set(DWVALIDATION_TARGET_HEADER, csTargetHeader);
-		Properties headerFileProps = DWUtil.getSourceHeaderFiles(sourceInputDataSet);
+		Properties headerFileProps = DWUtil.getSourceHeaderFiles(sourceInputDataSet,prop.getProperty(DWVALIDATION_COMPRESSION_LEVEL));
 		String headerFilesStr = DWUtil.getSourceHeaderColumns(headerFileProps);
 		conf.set(DWVALIDATION_SOURCE_HEADERS, headerFilesStr);
 	    System.out.println("SourceHeaderColums" + headerFilesStr);
