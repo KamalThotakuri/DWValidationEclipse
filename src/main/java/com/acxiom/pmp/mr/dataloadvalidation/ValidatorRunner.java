@@ -28,7 +28,32 @@ public class ValidatorRunner extends Configured implements Tool,DWConfigConstant
 
 	@Override
 	public int run(String[] args) throws Exception {
-		DWConfiguration.loadProps("config/dwconfig.properties");
+        String confIdentifier = args[0];
+		switch (confIdentifier.toUpperCase()) {
+		case "BIN":
+			confIdentifier = BIN;
+			break;
+		case "PIN":
+			confIdentifier = PIN;
+			break;
+		case "PBL": 
+			confIdentifier = PBL;
+			break;
+		case "ADDRESS":
+			confIdentifier = ADDRESS;
+			break;
+		case "ZIP":
+			confIdentifier = ZIP;
+			break;			
+		default:
+			log.error("Not given the proper configuration file name");
+			System.exit(-1);
+			break;
+		}
+		String path = "config" + FSEP + confIdentifier;
+		System.out.println("Resul Location========" + path);
+		DWConfiguration.loadProps(path);
+		//DWConfiguration.loadProps("config/dwconfig.bin.properties");
 		Properties prop =  DWConfiguration.getProps();		
 		String sourceInputDataSet = DWUtil.parseSoruceTableInput(prop.getProperty(DWVALIDATION_START_DATAE), 
 				prop.getProperty(DWVALIDATION_END_DATAE), 
@@ -38,11 +63,9 @@ public class ValidatorRunner extends Configured implements Tool,DWConfigConstant
 				prop.getProperty(DWVALIDATION_SOURCE_TABLES_DATA_LOCATON), 
 				prop.getProperty(DWVALIDATION_SOURCE__EXCLUDED_TABLES));
 
-
+       // System.out.println(sourceInputDataSet );
 		String dwTableInputDataSet = prop.getProperty(DWVALIDATION_TARGET_DW_TABLE_DATA_LOCATON) + FSEP + "Data" + FSEP +
-		prop.getProperty(DWVALIDATION_TARGET_HIVE_TABLE_TOCOMPARE);
-		//For Venkat Data
-		//String dwTableInputDataSet =  prop.getProperty(DWVALIDATION_TARGET_DW_TABLE_DATA_LOCATON);
+				prop.getProperty(DWVALIDATION_TARGET_HIVE_TABLE_TOCOMPARE);
 		Configuration conf= new Configuration();
 		conf.set("mapreduce.job.reduces", "100");
 		conf.set("mapreduce.map.output.compress", "true");
@@ -53,8 +76,9 @@ public class ValidatorRunner extends Configured implements Tool,DWConfigConstant
 		conf.set(DWVALIDATION_TARGET_DW_TABLE_DATA_LOCATON, prop.getProperty(DWConfigConstants.DWVALIDATION_TARGET_DW_TABLE_DATA_LOCATON));	
 		String csTargetHeader = DWUtil.getTargetHeaderColumns(prop.getProperty(DWVALIDATION_TARGET_DW_TABLE_DATA_LOCATON) ,prop.getProperty(DWVALIDATION_TARGET_HIVE_TABLE_TOCOMPARE));
 		conf.set(DWVALIDATION_TARGET_HEADER, csTargetHeader);
-        String dateColIndexs = DWUtil.getDatecolIndx(csTargetHeader);
-        conf.set(DATE_COL_INDEXS, dateColIndexs);
+		String dateColIndexs = DWUtil.getDatecolIndx(csTargetHeader);
+		System.out.println(dateColIndexs);
+		conf.set(DATE_COL_INDEXS, dateColIndexs);
 		Properties headerFileProps = DWUtil.getSourceHeaderFiles(sourceInputDataSet,prop.getProperty(DWConfigConstants.DWVALIDATION_COMPRESSION_LEVEL));
 		String headerFilesStr = DWUtil.getSourceHeaderColumns(headerFileProps);
 		conf.set(DWVALIDATION_SOURCE_HEADERS, headerFilesStr);		
@@ -68,15 +92,16 @@ public class ValidatorRunner extends Configured implements Tool,DWConfigConstant
 		String outPath = prop.getProperty(DWVALIDATION_RESULT_LOCATION ) + prop.getProperty(DWConfigConstants.DWVALIDATION_TARGET_HIVE_TABLE_TOCOMPARE) + FSEP + 
 				prop.getProperty(DWVALIDATION_START_DATAE) + UNDERSCORE + prop.getProperty(DWVALIDATION_END_DATAE);
 		conf.set(DWVALIDATION_RESULT_LOCATION, outPath);
+		System.out.println("Resul Location========" + outPath);		
 		conf.set(DWVALIDATION_COL_SAMPLING_COUNT, prop.getProperty(DWConfigConstants.DWVALIDATION_COL_SAMPLING_COUNT));
+
+
 		
-		
-		//conf.set("mapreduce.job.reduces", "7");
-		
+
 		/////temp code need to delete
 		/*Map<String, Map<String, String>> map1 = DWUtil.getHeadersAsMap(headerFilesStr);
 	    Map<String, Map<String, String>> dateColIndxMap = new HashMap<String, Map<String, String>>();
-	   
+
 	    dateColIndxMap = DWUtil.getDatecolIndx(map1);
 		for(Map.Entry<String, Map<String, String>> elements:dateColIndxMap.entrySet() ){
 
@@ -97,7 +122,7 @@ public class ValidatorRunner extends Configured implements Tool,DWConfigConstant
 		job.setOutputKeyClass(Text.class);	
 		job.setOutputValueClass(NullWritable.class);
 		LazyOutputFormat.setOutputFormatClass(job, TextOutputFormat.class);
-		//job.setNumReduceTasks(0);
+		job.setNumReduceTasks(0);
 		// inputs
 		job.setInputFormatClass(TextInputFormat.class);
 		String inputDataSet = sourceInputDataSet + COMMA + dwTableInputDataSet;

@@ -92,8 +92,7 @@ public class DWUtil implements DWConfigConstants {
 				e.printStackTrace();
 			}
 		}else{
-			
-			try {
+			try{
 				Path inFile = new Path(sourceTableinputPath);
 				fs = FileSystem.get(new Configuration());
 				FileStatus[] fileStatus = fs.listStatus(inFile);
@@ -102,24 +101,28 @@ public class DWUtil implements DWConfigConstants {
 						continue ;
 					}
 					dateFolder = status.getPath().getName();
-					int currentDate = Integer.parseInt(dateFolder);
-					if(currentDate >= Integer.parseInt(startDate) && currentDate <= Integer.parseInt(endDate)){
-						//requiredFolderList.append(status.getPath().toString() +  FSEP +targetTable+ COMMA);
-						Path currentDateFolder = new Path(status.getPath().toString() +  FSEP +targetTable);
-						FileStatus[] dataFileStatus = fs.listStatus(status.getPath());
-						for(FileStatus dataFile:dataFileStatus){
-							if(status.isDir()){
-								continue ;
-							}
-							String inputPathFileName = dataFile.getPath().getName();
-							String[] fileSplitHoder = inputPathFileName.split(TABLE_NAME_SPLITTER_FROM_FNAME);
-							String tablename = fileSplitHoder[0];
-							if(sourceTableList.contains(tablename)){
-								requiredFileList.append(dataFile.getPath().toString() + COMMA);
+					if(StringUtils.isNumeric(dateFolder)){
+						int currentDate = Integer.parseInt(dateFolder);
+						if(currentDate >= Integer.parseInt(startDate) && currentDate <= Integer.parseInt(endDate)){
+							//requiredFolderList.append(status.getPath().toString() +  FSEP +targetTable+ COMMA);
+
+							Path currentDateFolder = new Path(status.getPath().toString() +  FSEP +targetTable);
+							FileStatus[] dataFileStatus = fs.listStatus(currentDateFolder);
+							for(FileStatus dataFile:dataFileStatus){
+								if(dataFile.isDir()){
+									continue ;
+								}
+								String inputPathFileName = dataFile.getPath().getName().toString();		
+								String[] fileSplitHoder = inputPathFileName.split(TABLE_NAME_SPLITTER_FROM_FNAME);
+								String tablename = fileSplitHoder[0];
+								if(sourceTableList.contains(tablename)){
+									requiredFileList.append(dataFile.getPath().toString() + COMMA);
+								}
 							}
 						}
 					}
 				}
+
 			}catch (Exception e) {
 				//throw new DWException("Error occured while getting required source table list from default case"  , e);
 				e.printStackTrace();
@@ -258,8 +261,8 @@ public class DWUtil implements DWConfigConstants {
 				}
 
 				String csHeaderContent = tsHeaderContent.replaceAll(TAB, COMMA);
-				if(csHeaderContent.contains(",newline")){
-					csHeaderContent = csHeaderContent.replaceAll(",newline", "");					
+				if(csHeaderContent.contains(ADDITIONAL_NEWLINE)){
+					csHeaderContent = csHeaderContent.replaceAll(ADDITIONAL_NEWLINE, "");					
 				}
 				dateHeadersStr.append(date+COLON+csHeaderContent+TILD);
 			}
@@ -396,12 +399,17 @@ public class DWUtil implements DWConfigConstants {
 		String dateIndexs=null;
 		try{
 			String[] colsHolder = csTargetHeader.split(COMMA);
-			
+			int nCount =0;
 			for(int i=0; i<colsHolder.length; i++ ){
-				if(colsHolder[i].toLowerCase().contains(DATE_COL_REFERENCE)){
-					sb.append(i);
+				
+				if((colsHolder[i].toLowerCase().contains(DATE_COL_REFERENCE)) || (colsHolder[i].toLowerCase().contains(DATE_COL_REFERENCE_1) )){
+					//remove
+					/*sb.append(colsHolder[i]);
+					sb.append(":");*/
+					sb.append(nCount);
 					sb.append(COMMA);
-				}	    	
+				}	
+				nCount ++;
 			}
 			if(sb.length() >0){
 				sb.setLength(sb.length()-1);

@@ -1,3 +1,4 @@
+
 package com.acxiom.pmp.mr.dataloadvalidation;
 
 import java.io.IOException;
@@ -25,14 +26,12 @@ public class ValidatorMapper extends Mapper<LongWritable, Text, Text, Text > imp
 	private String targetHiveTable; 
 	private int primaryKeyIndex=0;
 	private boolean isCompositeKey = false;
-	private String compositeKey;
 	private String srcRequiredTable;
 	private String rowKeyCols;
 	private Map<String, Map<String, String>> map = new HashMap<String, Map<String, String>>();
 	private Map<String, Map<String, String>> dateColIndxMap = new HashMap<String, Map<String, String>>();
 	private ArrayList<Integer> compositeKeyIndex = new ArrayList<Integer>();
-	private String dateColIndxs;
-	//Has to remove the below variables and make them local
+	private String dateColIndxs;	
 	private String inputFilePath;
 	private String inputFileName;
 	private String sourceDataLocation;
@@ -126,7 +125,7 @@ public class ValidatorMapper extends Mapper<LongWritable, Text, Text, Text > imp
 					columns[dtindx] = temp.replace(HYPHEN, "");
 				}
 			}
-			
+
 			String primaryKey = columns[primaryKeyIndex];         
 			StringBuilder result = new StringBuilder();
 			for(int colIdx=0; colIdx<columns.length; colIdx++) {
@@ -146,47 +145,49 @@ public class ValidatorMapper extends Mapper<LongWritable, Text, Text, Text > imp
 	public void map(LongWritable key, Text value, Context context) throws IOException, InterruptedException{
 		//TempDelete
 		String[] columnValues = value.toString().split(TAB,-2);
-		
-	try{	
-		DataRecord record = null;
-				
-		if(isCompositeKey) {
-			record = handleCompositeKey(value);
-		} else {
-			record = handlePrimarKey(value);
-		}
-		// 
-		StringBuilder sb = new StringBuilder();
-		sb.append(tableName);
-		sb.append(COLON);
 
-		if (!tableName.equals(targetHiveTable)){
-			//This line has to keep
-			sb.append(date);
+		try{	
+			DataRecord record = null;
 
-			//sb.append(" Date:" + date + "targetHiveTable :" + targetHiveTable);
-		}else{
-			sb.append("yyyymmdd");
+			if(isCompositeKey) {
+				record = handleCompositeKey(value);
+			} else {
+				record = handlePrimarKey(value);
+			}
+			// 
+			StringBuilder sb = new StringBuilder();
+			sb.append(tableName);
+			sb.append(COLON);
+
+			if (!tableName.equals(targetHiveTable)){
+				//This line has to keep
+				sb.append(date);
+
+				//sb.append(" Date:" + date + "targetHiveTable :" + targetHiveTable);
+			}else{
+				sb.append("yyyymmdd");
+			}
+			sb.append(COLON);		
+			sb.append(inputFilePath);
+			sb.append(COLON);
+			sb.append(columnValues.length);
+			sb.append(COLON);
+			//sb.append(value.toString());
+			sb.append(record.getRecord());
+			keyOut.set(record.getRowKey());
+			valueOut.set(sb.toString());
+			context.write(keyOut, valueOut);
+		}catch(Exception e){
+			String exTrace = DWUtil.getStackTraceAsString(e);
+			log.error("Error occured while sending the mapper output. "+e.getMessage());
+			log.error(exTrace);
+			throw new DWException("Error occured while sending mapper output Filt Path is +" + inputFilePath,e);
 		}
-		sb.append(COLON);		
-		sb.append(inputFilePath);
-		sb.append(COLON);
-		sb.append(columnValues.length);
-		sb.append(COLON);
-		//sb.append(value.toString());
-		sb.append(record.getRecord());
-		keyOut.set(record.getRowKey());
-		valueOut.set(sb.toString());
-		context.write(keyOut, valueOut);
-	 }catch(Exception e){
-		 throw new DWException("coldIndex from map:");
-	 }
-	
+
 	}
 	private DataRecord handleCompositeKey(Text value) {
 		StringBuilder combiner = new StringBuilder();
 		String[] columns = value.toString().split(TAB,-2);
-
 		if(tableName.equals(targetHiveTable) ){
 			String[] indx = dateColIndxs.split(COMMA);
 			for(String in:indx){

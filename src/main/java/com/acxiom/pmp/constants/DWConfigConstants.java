@@ -43,6 +43,29 @@ public interface DWConfigConstants {
 	String NOT_UPDATED_TO_NULL="not_updated_to_null";
 	String SAMPLING_FOLDER_NAME= "LIMITBY";
 	String DATE_COL_REFERENCE= "_dt";
+	String DATE_COL_REFERENCE_1="_date";
 	String HYPHEN="-";
+	String EMPTY = "";
+	String QUOTES="\"";
+	// conf file identifier  Constants 
+	String PIN="dwconfig.pin.properties";
+	String BIN="dwconfig.bin.properties";
+	String PBL="dwconfig.pbl.properties";
+	String ADDRESS="dwconfig.address.properties";
+	String ZIP="dwconfig.zip.properties";
+	
+	//Colms Mapping for BIN
+	
+	String UPDT_DT="_UPDT_DT";
+	String UPT_DT="_UPT_DT";
+	String UPDATE_DATE="_UPDATE_DATE";
+	String UPD_DT="_UPD_DT";
+	
+	//Mapper Constant
+	String ORC_NULL = "\\N";
+	
+			
+	
+
 
 }
