@@ -30,11 +30,11 @@ public class ValidatorRunnerBak extends Configured implements Tool,DWConfigConst
 		Properties prop =  DWConfiguration.getProps();
 		String sourceInputDataSet = DWUtil.parseSoruceTableInput(prop.getProperty(DWVALIDATION_START_DATAE), 
 				prop.getProperty(DWVALIDATION_END_DATAE), 
-				prop.getProperty(DWVALIDATION_COMPRESSION_LEVEL),
+				prop.getProperty(DWVALIDATION_COMPARISION_LEVEL),
 				prop.getProperty(DWVALIDATION_SOURCE_TABLES_REQUIRED_TOCOMPARE),
 				prop.getProperty(DWVALIDATION_TARGET_HIVE_TABLE_TOCOMPARE),
 				prop.getProperty(DWVALIDATION_SOURCE_TABLES_DATA_LOCATON),
-				prop.getProperty(DWVALIDATION_SOURCE__EXCLUDED_TABLES));
+				prop.getProperty(DWVALIDATION_SOURCE_EXCLUDED_TABLES));
 
 		String dwTableInputDataSet = prop.getProperty(DWVALIDATION_TARGET_DW_TABLE_DATA_LOCATON) + FSEP + "Data" + FSEP +
 				prop.getProperty(DWVALIDATION_TARGET_HIVE_TABLE_TOCOMPARE);
@@ -44,7 +44,7 @@ public class ValidatorRunnerBak extends Configured implements Tool,DWConfigConst
 		
 		Configuration conf= new Configuration();
 		conf.set(DWVALIDATION_SOURCE_TABLES_REQUIRED_TOCOMPARE, prop.getProperty(DWConfigConstants.DWVALIDATION_SOURCE_TABLES_REQUIRED_TOCOMPARE));
-		conf.set(DWVALIDATION_COMPRESSION_LEVEL, prop.getProperty(DWConfigConstants.DWVALIDATION_COMPRESSION_LEVEL));
+		conf.set(DWVALIDATION_COMPARISION_LEVEL, prop.getProperty(DWConfigConstants.DWVALIDATION_COMPARISION_LEVEL));
 		conf.set(DWVALIDATION_SOURCE_TABLES_DATA_LOCATON, prop.getProperty(DWConfigConstants.DWVALIDATION_SOURCE_TABLES_DATA_LOCATON));
 		conf.set(DWVALIDATION_TARGET_DW_TABLE_DATA_LOCATON, prop.getProperty(DWConfigConstants.DWVALIDATION_TARGET_DW_TABLE_DATA_LOCATON));		
 		conf.set(DWVALIDATION_TARGET_HIVE_TABLE_TOCOMPARE, prop.getProperty(DWConfigConstants.DWVALIDATION_TARGET_HIVE_TABLE_TOCOMPARE));
@@ -55,7 +55,7 @@ public class ValidatorRunnerBak extends Configured implements Tool,DWConfigConst
 		String csTargetHeader = DWUtil.getTargetHeaderColumns(prop.getProperty(DWVALIDATION_TARGET_DW_TABLE_DATA_LOCATON) ,prop.getProperty(DWVALIDATION_TARGET_HIVE_TABLE_TOCOMPARE));
 		System.out.println("target Header Cols: " + csTargetHeader);
 		conf.set(DWVALIDATION_TARGET_HEADER, csTargetHeader);
-		Properties headerFileProps = DWUtil.getSourceHeaderFiles(sourceInputDataSet,prop.getProperty(DWVALIDATION_COMPRESSION_LEVEL));
+		Properties headerFileProps = DWUtil.getSourceHeaderFiles(sourceInputDataSet,prop.getProperty(DWVALIDATION_COMPARISION_LEVEL));
 		String headerFilesStr = DWUtil.getSourceHeaderColumns(headerFileProps);
 		conf.set(DWVALIDATION_SOURCE_HEADERS, headerFilesStr);
 	    System.out.println("SourceHeaderColums" + headerFilesStr);

@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.apache.commons.compress.utils.Charsets;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
@@ -36,7 +37,8 @@ public class ValidatorMapper extends Mapper<LongWritable, Text, Text, Text > imp
 	private String inputFileName;
 	private String sourceDataLocation;
 	private String lstName;
-	private static Logger log = LoggerFactory.getLogger(ValidatorMapper.class);
+	private String quotetables=null;
+	private static Logger log = LoggerFactory.getLogger(ValidatorMapperBak.class);
 
 	@Override
 	protected void setup(Context context){
@@ -44,6 +46,7 @@ public class ValidatorMapper extends Mapper<LongWritable, Text, Text, Text > imp
 		try {
 			inputFilePath = ((FileSplit) context.getInputSplit()).getPath().toString();
 			inputFileName = ((FileSplit) context.getInputSplit()).getPath().getName();	
+			quotetables = conf.get(DWVALIDATION_SOURCE_QUOTES_TABLES);
 			sourceDataLocation = conf.get(DWVALIDATION_SOURCE_TABLES_DATA_LOCATON);
 			targetHiveTable = conf.get(DWVALIDATION_TARGET_HIVE_TABLE_TOCOMPARE);
 			srcRequiredTable = conf.get(DWVALIDATION_SOURCE_TABLES_REQUIRED_TOCOMPARE);
@@ -116,20 +119,60 @@ public class ValidatorMapper extends Mapper<LongWritable, Text, Text, Text > imp
 
 	private DataRecord handlePrimarKey(Text value) {
 		try{
-			String[] columns = value.toString().split(TAB,-2);
-			if(tableName.equals(targetHiveTable) ){
+			StringBuilder result = new StringBuilder();
+			String primaryKey = null;
+			if(!inputFilePath.contains(sourceDataLocation)){
+				//if(tableName.equals(targetHiveTable) ){
+				//String[] columns = value.toString().split(THORN,-2);
+				String data = new String(value.getBytes(),
+						0, value.getLength(), 
+						Charsets.ISO_8859_1);
+				String[] columns = data.split(THORN,-2);
+				primaryKey = columns[primaryKeyIndex];        
 				String[] indx = dateColIndxs.split(COMMA);
 				for(String in:indx){
 					int dtindx = Integer.parseInt(in);
 					String temp = columns[dtindx];
 					columns[dtindx] = temp.replace(HYPHEN, "");
 				}
-			}
-
-			String primaryKey = columns[primaryKeyIndex];         
-			StringBuilder result = new StringBuilder();
-			for(int colIdx=0; colIdx<columns.length; colIdx++) {
-				result.append(columns[colIdx].trim()+TAB);
+				for(int colIdx=0; colIdx<columns.length; colIdx++) {
+					result.append(columns[colIdx].trim()+THORN);
+				}
+			}else{
+				String line = value.toString();
+				String[] columns = line.split(TAB,-2);
+				primaryKey = columns[primaryKeyIndex];   
+				if(quotetables != null && quotetables.contains(tableName)){					
+					if(line.contains(QUOTES)){
+						String[] qtindex= quotetables.split(SINGLE_COLON);
+						int qtpoint = Integer.parseInt(qtindex[1]) -2; 
+						for(int i=0 ; i <=qtpoint ;i++ ){
+							result.append(columns[i]);
+							result.append(TAB);
+						}
+						line = line.replace(result.toString(), "");	
+						result.setLength(0);
+						for(int i=0 ; i <=qtpoint ;i++ ){
+							result.append(columns[i]);
+							result.append(THORN);
+						}
+						int loccurnace = line.lastIndexOf(QUOTES);
+						String quotestring = line.substring(0, loccurnace+1);
+						//quotestring = quotestring.replace(TAB, THORN);
+						String secondset = line.substring(loccurnace +1);
+						secondset = secondset.replace(TAB, THORN);
+						result.append(quotestring);
+						result.append(secondset);
+					}else{
+						for(int colIdx=0; colIdx<columns.length; colIdx++) {
+							result.append(columns[colIdx].trim()+THORN);
+						}
+					}
+				}else{
+					for(int colIdx=0; colIdx<columns.length; colIdx++) {
+						result.append(columns[colIdx].trim()+THORN);
+					}
+				}
 			}
 			if(result.length() > 0) {
 				result.setLength(result.length()-1);
@@ -144,8 +187,9 @@ public class ValidatorMapper extends Mapper<LongWritable, Text, Text, Text > imp
 	@Override
 	public void map(LongWritable key, Text value, Context context) throws IOException, InterruptedException{
 		//TempDelete
-		String[] columnValues = value.toString().split(TAB,-2);
-
+		//String[] columnValues = value.toString().split(TAB,-2);
+		int targetsplicount=0; 
+		String srecord=null;
 		try{	
 			DataRecord record = null;
 
@@ -157,9 +201,9 @@ public class ValidatorMapper extends Mapper<LongWritable, Text, Text, Text > imp
 			// 
 			StringBuilder sb = new StringBuilder();
 			sb.append(tableName);
-			sb.append(COLON);
+			sb.append(APPENDER);
 
-			if (!tableName.equals(targetHiveTable)){
+			if (inputFilePath.contains(sourceDataLocation)){
 				//This line has to keep
 				sb.append(date);
 
@@ -167,48 +211,112 @@ public class ValidatorMapper extends Mapper<LongWritable, Text, Text, Text > imp
 			}else{
 				sb.append("yyyymmdd");
 			}
-			sb.append(COLON);		
+			sb.append(APPENDER);		
 			sb.append(inputFilePath);
-			sb.append(COLON);
-			sb.append(columnValues.length);
-			sb.append(COLON);
+			sb.append(APPENDER);
+			//sb.append(columnValues.length);
+			//sb.append(COLON);
 			//sb.append(value.toString());
 			sb.append(record.getRecord());
+			sb.append(APPENDER);
+			if(inputFilePath.contains(sourceDataLocation)){
+				sb.append(SFTYPE);
+			}else{
+				sb.append(TFTYPE);
+			}
 			keyOut.set(record.getRowKey());
 			valueOut.set(sb.toString());
 			context.write(keyOut, valueOut);
+			/*if(!tableName.equals(targetHiveTable) ){				
+				srecord = record.getRecord();
+				throw new Exception();
+			}*/
+			srecord = record.getRecord();
 		}catch(Exception e){
 			String exTrace = DWUtil.getStackTraceAsString(e);
 			log.error("Error occured while sending the mapper output. "+e.getMessage());
 			log.error(exTrace);
-			throw new DWException("Error occured while sending mapper output Filt Path is +" + inputFilePath,e);
+			throw new DWException("Record:" + srecord + FSEP + "File" + inputFilePath  ,e);
 		}
 
 	}
 	private DataRecord handleCompositeKey(Text value) {
 		StringBuilder combiner = new StringBuilder();
-		String[] columns = value.toString().split(TAB,-2);
-		if(tableName.equals(targetHiveTable) ){
+		StringBuilder result = new StringBuilder();
+
+
+		if(!inputFilePath.contains(sourceDataLocation)){
+			//String[] columns = value.toString().split(THORN,-2);
+			String data = new String(value.getBytes(),
+					0, value.getLength(), 
+					Charsets.ISO_8859_1);
+			String[] columns = data.split(THORN,-2);
 			String[] indx = dateColIndxs.split(COMMA);
+			for(Integer index:compositeKeyIndex){
+				String cloName = columns[index];
+				combiner.append(cloName);
+				combiner.append(APPENDER);
+			}
 			for(String in:indx){
 				int dtindx = Integer.parseInt(in);
 				String temp = columns[dtindx];
 				columns[dtindx] = temp.replace(HYPHEN, "");
 			}
+			
+			if(combiner.length() > 0) {
+				combiner.setLength(combiner.length()-1);
+			}
+			for(int colIdx=0; colIdx<columns.length; colIdx++) {
+				result.append(columns[colIdx].trim()+THORN);
+			}
+
+		}else{
+			//String[] columns = value.toString().split(THORN,-2);
+			String line = value.toString();
+			String[] columns = line.split(TAB,-2);
+
+			for(Integer index:compositeKeyIndex){
+				String cloName = columns[index];
+				combiner.append(cloName);
+				combiner.append(APPENDER);
+			}
+			if(combiner.length() > 0) {
+				combiner.setLength(combiner.length()-1);
+			}
+			if(quotetables != null && quotetables.contains(tableName)){					
+				if(line.contains(QUOTES)){
+					String[] qtindex= quotetables.split(SINGLE_COLON);
+					int qtpoint = Integer.parseInt(qtindex[1]) -2; 
+					for(int i=0 ; i <=qtpoint ;i++ ){
+						result.append(columns[i]);
+						result.append(TAB);
+					}
+					line = line.replace(result.toString(), "");	
+					result.setLength(0);
+					for(int i=0 ; i <=qtpoint ;i++ ){
+						result.append(columns[i]);
+						result.append(THORN);
+					}
+					int loccurnace = line.lastIndexOf(QUOTES);
+					String quotestring = line.substring(0, loccurnace+1);
+					//quotestring = quotestring.replace(TAB, THORN);
+					String secondset = line.substring(loccurnace +1);
+					secondset = secondset.replace(TAB, THORN);
+					result.append(quotestring);
+					result.append(secondset);
+				}else{
+					for(int colIdx=0; colIdx<columns.length; colIdx++) {
+						result.append(columns[colIdx].trim()+THORN);
+					}
+				}
+			}else{
+				for(int colIdx=0; colIdx<columns.length; colIdx++) {
+					result.append(columns[colIdx].trim()+THORN);
+				}
+			}
 		}
-		for(Integer index:compositeKeyIndex){
-			String cloName = columns[index];
-			combiner.append(cloName);
-			combiner.append(COLON);
-		}
-		if(combiner.length() > 0) {
-			combiner.setLength(combiner.length()-1);
-		}
+
 		String rowKey = combiner.toString();
-		StringBuilder result = new StringBuilder();
-		for(int colIdx=0; colIdx<columns.length; colIdx++) {
-			result.append(columns[colIdx].trim()+TAB);
-		}
 		if(result.length() > 0) {
 			result.setLength(result.length()-1);
 		}

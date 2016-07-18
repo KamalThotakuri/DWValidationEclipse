@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.apache.commons.compress.utils.Charsets;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.io.Text;
@@ -19,10 +20,11 @@ import com.acxiom.pmp.constants.DWConfigConstants;
 public class ValidatorReducer extends Reducer< Text, Text, Text, NullWritable> implements DWConfigConstants {
 	private Map<String, Map<String, String>> map = new HashMap<String, Map<String, String>>();
 	private Map<String, Boolean> targetHiveTableFlagMap = new HashMap<String, Boolean>();
-	private static Logger log = LoggerFactory.getLogger(ValidatorReducer.class);
+	private static Logger log = LoggerFactory.getLogger(ValidatorReducerBak.class);
 	private static Map<String, Integer> diffReportingColLimit = new HashMap<String, Integer>();
 	private static Map<String, Integer> sourceReportingColLimit = new HashMap<String, Integer>();
 	private static Map<String, Integer> targetReportingColLimit = new HashMap<String, Integer>();
+	private static Map<String, Integer> matchedReportingColLimit = new HashMap<String, Integer>();
 	private Text keyOut = new Text();
 	private Text valueOut = new Text();
 	private String targetHiveTable;
@@ -41,7 +43,8 @@ public class ValidatorReducer extends Reducer< Text, Text, Text, NullWritable> i
 		srcRequiredTable = conf.get(DWVALIDATION_SOURCE_TABLES_REQUIRED_TOCOMPARE);
 		rootOutputLoc = conf.get(DWVALIDATION_RESULT_LOCATION);
 		String limit = conf.get(DWVALIDATION_COL_SAMPLING_COUNT);
-		limitCount = Integer.parseInt(limit);
+		limitCount = Integer.parseInt(limit); 
+		limitCount = limitCount %10;
 		map = DWUtil.getHeadersAsMap(headerFiles);
 		out = new MultipleOutputs(context);		
 
@@ -54,7 +57,7 @@ public class ValidatorReducer extends Reducer< Text, Text, Text, NullWritable> i
 		Map<String, String> targetHiveTableMap = new HashMap<String, String>();
 		Map<String, String> soruceTableMap = new HashMap<String, String>();
 
-/*	   variables that need to be removed	
+		/*	   variables that need to be removed	
       //String tableName=null;
 		String matchedColsHolder=null;
 		String differedColssHolder=null;
@@ -70,41 +73,50 @@ public class ValidatorReducer extends Reducer< Text, Text, Text, NullWritable> i
 		StringBuilder notUpdatetoNull = new StringBuilder();
 		StringBuilder updatetoNull = new StringBuilder();
 		//String date = "";
-*/
-		log.info("reducer messaged from log4j");
+		 */
+		//log.info("reducer messaged from log4j");
 		int itrDepth=0;
 		boolean targetTableExist=false;
 		int targetCount =0;
-		for(Text tableDateData : values){
 
-			String[] tableDateDataArr = tableDateData.toString().split(COLON,5);
+		for(Text tableDateData : values){
+			String[] tableDateDataArr = tableDateData.toString().split(APPENDER,5);
 			String tableName = tableDateDataArr[0];
 			String date = tableDateDataArr[1];
 			String inFileName = tableDateDataArr[2];
-			String mapperSplitValue = tableDateDataArr[3];
-			String record = tableDateDataArr[4];
-
-			//tempDelete
-			StringBuilder ss = new StringBuilder();
-			if(!tableName.equals(targetHiveTable)){
-				Map<String, String> dateHeader = map.get(tableName);
-				String header = dateHeader.get(date);
-				String[] cols = header.split(COMMA);
-				String[] colValues = record.split(TAB,-2);
+			//String mapperSplitValue = tableDateDataArr[3];
+			String record = tableDateDataArr[3];
+			String fType = tableDateDataArr[4];
+			//declaration has to move to try block
+			String[] scolValues =null;
+			String[] scols = null;
+			String sheader = null;
+			if(fType.equals(SFTYPE)){
 				try{
-					if(cols.length != colValues.length ){
+					Map<String, String> dateHeader = map.get(tableName);
+					sheader = dateHeader.get(date);
+					scols = sheader.split(COMMA);
+					//String[] colValues = record.split(TAB,-2);
+					String nwrecord = new String(record.getBytes(),
+							0, record.length(), 
+							Charsets.ISO_8859_1);
+					scolValues = nwrecord.split(THORN,-2);
+
+
+					/*	if(cols.length != colValues.length ){
 						throw new Exception();
-					}
-					for(int i = 0; i < cols.length; i++) {
-						String sCName = cols[i].toUpperCase();
+					}*/
+					for(int i = 0; i < scols.length; i++) {
+						String sCName = scols[i].toUpperCase();
 						if(sCName.contains(UPDT_DT)){
 							sCName = sCName.replace(UPDT_DT, UPD_DT);
 						}else if(sCName.toUpperCase().contains(UPDATE_DATE)){
 							sCName = sCName.replace(UPDATE_DATE, UPD_DT);
-						}else if(cols[i].toUpperCase().contains(UPT_DT)){
+						}else if(scols[i].toUpperCase().contains(UPT_DT)){
 							sCName = sCName.replace(UPT_DT, UPD_DT);
 						}
-						String scValue = colValues[i];
+						String scValue = scolValues[i];
+						scValue = scValue.replace(QUOTES, EMPTY);
 						soruceTableMap.put(sCName, scValue + TILD + inFileName );	
 						/*ss.append(colValues[i]);
 						ss.append(";")*/;
@@ -114,36 +126,43 @@ public class ValidatorReducer extends Reducer< Text, Text, Text, NullWritable> i
 					String exTrace = DWUtil.getStackTraceAsString(e);
 					log.error("Error occured while validating the source col values with its header"+e.getMessage());
 					log.error(exTrace);
-					throw new DWException("Count Didn't Match " + "ccount:" + cols.length + "cVcount:" + colValues.length + "TableName: " +tableName + " HeaderCOunt:"+ cols.length + " RecordCunt:" +colValues.length + 
-							//" HeaderCols:" +header +
-							" MapperSplitValue:" + mapperSplitValue +
-							" InputFileName:" + inFileName +
-							" Record:" + record +
-							" SplittedRecord:"+ss.toString(), e);
+					throw new DWException("Count Didn't Match " + 
+							"date:"+ date + "\n"+
+							"record"+ record + "\n"+ 
+							"type" + fType + "\n" +
+							"TableName: " +tableName  + "\n"+
+							"InputFileName:" + inFileName +"\n" +
+							"sHeader" + sheader, e);
 				}
+
 			}else {
 				/// Loading of Target HashMap
 
 				targetTableExist=true;
-				String[] cols = csTargetHeader.split(COMMA);
-				String[] colValues = record.split(TAB,-2);
+				String[] tcols = csTargetHeader.split(COMMA);
+				String nwrecord = new String(record.getBytes(),
+						0, record.length(), 
+						Charsets.ISO_8859_1);
+				String[] tcolValues = nwrecord.split(THORN,-2);
+				//String[] colValues = record.split(TAB,-2);
 				try{
-					if(cols.length != colValues.length ){
+					/*if(cols.length != colValues.length ){
 						throw new Exception();
-					}
-					for(int i = 0; i < cols.length; i++) {
-						String tcName = cols[i].toUpperCase();
+					}*/
+					for(int i = 0; i < tcols.length; i++) {
+						String tcName = tcols[i].toUpperCase();
 						if(tcName.contains(UPDT_DT)){
 							tcName = tcName.replace(UPDT_DT, UPD_DT);
 						}else if(tcName.toUpperCase().contains(UPDATE_DATE)){
 							tcName = tcName.replace(UPDATE_DATE, UPD_DT);
-						}else if(cols[i].toUpperCase().contains(UPT_DT)){
+						}else if(tcols[i].toUpperCase().contains(UPT_DT)){
 							tcName = tcName.replace(UPT_DT, UPD_DT);
 						}
-						String tcValue = colValues[i];
-						if((tcValue.startsWith(QUOTES)) && tcValue.endsWith(QUOTES)){
+						String tcValue = tcolValues[i];
+						tcValue = tcValue.replace(QUOTES, EMPTY);
+						/*if((tcValue.startsWith(QUOTES)) && tcValue.endsWith(QUOTES)){
 							tcValue = tcValue.replace(QUOTES, EMPTY);
-						}
+						}*/
 						targetHiveTableMap.put(tcName, tcValue + TILD + inFileName );
 						targetHiveTableFlagMap.put(tcName, false);
 					}
@@ -152,15 +171,16 @@ public class ValidatorReducer extends Reducer< Text, Text, Text, NullWritable> i
 					String exTrace = DWUtil.getStackTraceAsString(e);
 					log.error("Error occured while validating the target col values with its header "+e.getMessage());
 					log.error(exTrace);
-					throw new DWException("Count Didn't Match " + "ccount:" + cols.length + "cVcount:" + colValues.length + "TableName: " + tableName + " HeaderCOunt:"+ cols.length + " RecordCunt:" +colValues.length + 
+					throw new DWException("Count Didn't Match " + "ccount: " + tcols.length + " cVcount:" + tcolValues.length + "TableName: " + tableName + " HeaderCOunt:"+ tcols.length + " RecordCunt:" +tcolValues.length + 
 							" Record:" + record +							
-							" MapperSplitValue:" + mapperSplitValue +
+							//" MapperSplitValue:" + mapperSplitValue +
 							" InputFileName:" + inFileName, e);
 				}
 				targetCount ++;
 			}
 			itrDepth ++;
 		}
+
 
 		try{
 			if(itrDepth >1 && targetTableExist){
@@ -175,9 +195,31 @@ public class ValidatorReducer extends Reducer< Text, Text, Text, NullWritable> i
 						String targeColVal = targetValues[0];
 						String targetFileName = targetValues[1];
 						if (sourceColVal.isEmpty() && targeColVal.equals(ORC_NULL)){
-							//matchedCols.append(colName);
-							//matchedCols.append(SEMICOLON);
+							String sKvalue =key.toString();
+							String sDiff = appendMatchedColResult(colName, sourceColVal, targeColVal, sKvalue, sourceFileName,  targetFileName);
+							keyOut.set(sDiff);
+							String resultLocation = rootOutputLoc + FSEP + MATCHED_COLS;
+							//out.write(keyOut, NullWritable.get(), resultLocation);							
 							targetHiveTableFlagMap.put(colName, true);
+							int currentValue =0;
+							String smplingResultLocation = rootOutputLoc + FSEP + SAMPLING_FOLDER_NAME + FSEP +  MATCHED_COLS + UNDERSCORE +DWVALIDATION_COL_SAMPLING_COUNT ;
+							if(matchedReportingColLimit.get(colName) == null){
+								matchedReportingColLimit.put(colName, 0);													
+								keyOut.set(sDiff);									
+								out.write(keyOut, NullWritable.get(), smplingResultLocation);	
+							}else{
+								currentValue = matchedReportingColLimit.get(colName);
+								if(currentValue<limitCount){
+									keyOut.set(sDiff);									
+									out.write(keyOut, NullWritable.get(), smplingResultLocation);	
+									matchedReportingColLimit.put(colName, ++currentValue);
+									int temp = matchedReportingColLimit.get(colName);
+									if(temp>10){
+										throw new DWException("Looping more time" + Integer.toString( temp));
+									}
+								}
+							}
+							//targetHiveTableFlagMap.put(colName, true);
 						}else{
 							if(!sourceColVal.equals(targeColVal)){
 								String sKvalue =key.toString();
@@ -205,15 +247,38 @@ public class ValidatorReducer extends Reducer< Text, Text, Text, NullWritable> i
 									}
 								}
 							}else{
-								//matchedCols.append(colName);
-								//matchedCols.append(SEMICOLON);
+								String sKvalue =key.toString();
+								String sDiff = appendMatchedColResult(colName, sourceColVal, targeColVal, sKvalue, sourceFileName,  targetFileName);
+								keyOut.set(sDiff);
+								String resultLocation = rootOutputLoc + FSEP + MATCHED_COLS;
+								//out.write(keyOut, NullWritable.get(), resultLocation);							
 								targetHiveTableFlagMap.put(colName, true);
+								int currentValue =0;
+								String smplingResultLocation = rootOutputLoc + FSEP + SAMPLING_FOLDER_NAME + FSEP +  MATCHED_COLS + UNDERSCORE +DWVALIDATION_COL_SAMPLING_COUNT ;
+								if(matchedReportingColLimit.get(colName) == null){
+									matchedReportingColLimit.put(colName, 0);													
+									keyOut.set(sDiff);									
+									out.write(keyOut, NullWritable.get(), smplingResultLocation);	
+								}else{
+									currentValue = matchedReportingColLimit.get(colName);
+									if(currentValue<limitCount){
+										keyOut.set(sDiff);									
+										out.write(keyOut, NullWritable.get(), smplingResultLocation);	
+										matchedReportingColLimit.put(colName, ++currentValue);
+										int temp = matchedReportingColLimit.get(colName);
+										if(temp>10){
+											throw new DWException("Looping more time" + Integer.toString( temp));
+										}
+									}
+								}
+								//targetHiveTableFlagMap.put(colName, true);
 							}
 						}
 					}else if(targetHiveTableMap.get(colName) ==null ){
-						String soruceDiff = appendSourceResult(colName, sourceFileName);
+
+						String soruceDiff = appendSourceResult(colName, sourceColVal, sourceFileName);
 						keyOut.set(soruceDiff);
-						String resultLocation = rootOutputLoc + FSEP + EXISTS_ONLY_IN_SOURCE_COLS ;
+						String resultLocation = rootOutputLoc + FSEP + EXISTS_ONLY_IN_SOURCE_COLS + "_ntintmap" ;
 						out.write(keyOut, NullWritable.get(), resultLocation);	
 						///Printing limit output
 						int currentValue =0;
@@ -238,40 +303,46 @@ public class ValidatorReducer extends Reducer< Text, Text, Text, NullWritable> i
 				for(String colName:targetHiveTableFlagMap.keySet()){
 					String[] colTableNameHolder = colName.split(UNDERSCORE);
 					String colTableName = colTableNameHolder[0];
-					if(srcRequiredTable.contains(colTableName)){
-						if(!(targetHiveTableFlagMap.get(colName))){
-							String[] targetValues = targetHiveTableMap.get(colName).split(TILD);
-							String targeColVal = targetValues[0];
-							String targetFileName = targetValues[1];
-							/*if(targeColVal=="null"){
+					try{	
+						if(srcRequiredTable.contains(colTableName)){
+							if(!(targetHiveTableFlagMap.get(colName))){
+								String[] targetValues = targetHiveTableMap.get(colName).split(TILD);
+								String targeColVal = targetValues[0];
+								String targetFileName = targetValues[1];
+								/*if(targeColVal=="null"){
 								updatetoNull.append(colName);
 								updatetoNull.append(TAB);
 								updatetoNull.append(key.toString());								
 							}else{*/
-							String targetDiff = appendSourceResult(colName, targetFileName);
-							keyOut.set(targetDiff);							
-							String resultLocation = rootOutputLoc + FSEP + EXISTS_ONLY_IN_TARGET_COLS;
-							out.write(keyOut, NullWritable.get(), resultLocation);								
-							//prinitng limit output
-							int currentValue =0;
-							String smplingResultLocation = rootOutputLoc + FSEP + SAMPLING_FOLDER_NAME + FSEP +  EXISTS_ONLY_IN_TARGET_COLS + UNDERSCORE + DWVALIDATION_COL_SAMPLING_COUNT ;
-							if(targetReportingColLimit.get(colName) == null){
-								targetReportingColLimit.put(colName, 0);
-								out.write(keyOut, NullWritable.get(), smplingResultLocation);	
-							}else{
-								currentValue = targetReportingColLimit.get(colName);
-								if(currentValue<limitCount){
+								String targetDiff = appendTargetResult(colName,  targetFileName);
+								keyOut.set(targetDiff);							
+								String resultLocation = rootOutputLoc + FSEP + EXISTS_ONLY_IN_TARGET_COLS;
+								out.write(keyOut, NullWritable.get(), resultLocation);								
+								//prinitng limit output
+								int currentValue =0;
+								String smplingResultLocation = rootOutputLoc + FSEP + SAMPLING_FOLDER_NAME + FSEP +  EXISTS_ONLY_IN_TARGET_COLS + UNDERSCORE + DWVALIDATION_COL_SAMPLING_COUNT ;
+								if(targetReportingColLimit.get(colName) == null){
+									targetReportingColLimit.put(colName, 0);
 									out.write(keyOut, NullWritable.get(), smplingResultLocation);	
-									targetReportingColLimit.put(colName, ++currentValue);
-									int temp = targetReportingColLimit.get(colName);
-									if(temp>10){
-										throw new DWException("Looping more time" + Integer.toString( temp));
+								}else{
+									currentValue = targetReportingColLimit.get(colName);
+									if(currentValue<limitCount){
+										out.write(keyOut, NullWritable.get(), smplingResultLocation);	
+										targetReportingColLimit.put(colName, ++currentValue);
+										int temp = targetReportingColLimit.get(colName);
+										if(temp>10){
+											throw new DWException("Looping more time" + Integer.toString( temp));
+										}
 									}
 								}
-							}
 
+							}
 						}
+					}catch(Exception e){
+						throw new DWException("Exist only targets section" + "colTablename: " +  colTableName + "\n" +
+					                                           "srcRequiredtable :" + srcRequiredTable, e);
 					}
+					
 				}
 
 			}else if (itrDepth >=1 && !targetTableExist){
@@ -280,9 +351,9 @@ public class ValidatorReducer extends Reducer< Text, Text, Text, NullWritable> i
 					String[] sourceValues = sourceColValueFilName.split(TILD);
 					String sourceColVal = sourceValues[0];
 					String sourceFileName = sourceValues[1];
-					String soruceDiff = appendSourceResult(colName, sourceFileName);
+					String soruceDiff = appendSourceResult(colName, sourceColVal, sourceFileName);
 					keyOut.set(soruceDiff);
-					String resultLocation = rootOutputLoc + FSEP + EXISTS_ONLY_IN_SOURCE_COLS ;
+					String resultLocation = rootOutputLoc + FSEP + EXISTS_ONLY_IN_SOURCE_COLS + "no rowkey" ;
 					out.write(keyOut, NullWritable.get(), resultLocation);	
 				}
 			}else if (itrDepth==1 && targetTableExist){
@@ -325,10 +396,12 @@ public class ValidatorReducer extends Reducer< Text, Text, Text, NullWritable> i
 		return sb.toString();
 	}
 
-	private static String appendSourceResult(String colName, String sFile){
+	private static String appendSourceResult(String colName, String sourceValue, String sFile){
 		StringBuilder sb = new StringBuilder();
 		String COMMA = ",";
 		sb.append(colName);
+		sb.append(COMMA);
+		sb.append(sourceValue);
 		sb.append(COMMA);
 		sb.append(sFile);
 		return sb.toString();
@@ -344,4 +417,22 @@ public class ValidatorReducer extends Reducer< Text, Text, Text, NullWritable> i
 		return sb.toString();
 
 	}
+	
+	private static String appendMatchedColResult(String colName, String sCval, String tCval, String key, String sFile, String tFile){
+		StringBuilder sb = new StringBuilder();
+		String COMMA = ",";
+		sb.append(colName);
+		sb.append(COMMA);
+		sb.append(sCval);
+		sb.append(COMMA);
+		sb.append(tCval);
+		sb.append(COMMA);
+		sb.append(key.toString());
+		sb.append(COMMA);
+		sb.append(sFile);
+		sb.append(COMMA);
+		sb.append(tFile);
+		return sb.toString();
+	}
+
 }

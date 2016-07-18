@@ -54,7 +54,7 @@ public class DWUtil implements DWConfigConstants {
 		sourceTableinputPath = sourceTableinputPath + "Data" + FSEP  ;
 		//tempdelete:
 		String dateFolder;
-		if (comparisionLevel.equals(COMPRESSION_FULL)){
+		if (comparisionLevel.equals(COMPARISION_FULL)){
 			try{
 				Path inFile = new Path(sourceTableinputPath);
 				fs = FileSystem.get(new Configuration());
@@ -204,7 +204,7 @@ public class DWUtil implements DWConfigConstants {
 				//lastName:20160531.tsv
 				String[] dateHolder = lstName.split(DOT);
 				String dateValue = dateHolder[0];
-				String sValue= dateValue + COLON + headerFilePath;
+				String sValue= dateValue + APPENDER + headerFilePath;
 				// first get the property to see if one exists on this key; if yes, then update it; else create new property
 				String val = scHeaderconfig.getProperty(tableName);
 				if(val == null) {
@@ -245,7 +245,8 @@ public class DWUtil implements DWConfigConstants {
 
 			StringBuilder dateHeadersStr = new StringBuilder();
 			for(String dateHeader: tableDateHeaders) {
-				String[] dateHeaderArr = dateHeader.split(COLON);
+				System.out.println(dateHeader);
+				String[] dateHeaderArr = dateHeader.split(APPENDER);
 				String date = dateHeaderArr[0];
 				String headerFile = dateHeaderArr[1];
 
@@ -264,7 +265,7 @@ public class DWUtil implements DWConfigConstants {
 				if(csHeaderContent.contains(ADDITIONAL_NEWLINE)){
 					csHeaderContent = csHeaderContent.replaceAll(ADDITIONAL_NEWLINE, "");					
 				}
-				dateHeadersStr.append(date+COLON+csHeaderContent+TILD);
+				dateHeadersStr.append(date+APPENDER+csHeaderContent+TILD);
 			}
 			// remove last delimiter
 			if(dateHeadersStr.length() > 0) {
@@ -313,7 +314,7 @@ public class DWUtil implements DWConfigConstants {
 			String dateHeadersStr = tableDateHeaders[1];
 			String[] dateHeaders = dateHeadersStr.split(TILD);
 			for(String dateHeaderStr: dateHeaders) {
-				String[] dateHeader = dateHeaderStr.split(COLON);
+				String[] dateHeader = dateHeaderStr.split(APPENDER);
 				String date = dateHeader[0];
 				String colsStr = dateHeader[1];
 				thirdMap.put(date, colsStr);
